@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>My Figma Project — Demo</title>
+
+  <!-- Tailwind CDN for quick, production-like styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Tailwind config for dark mode and custom colors
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9f8',
+              100: '#daf3ee',
+              300: '#66d3c6',
+              500: '#10b981',
+              700: '#059669'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Small UI polish: card shine + reduced motion support */
+    .card-hover:hover { transform: translateY(-6px) scale(1.01); box-shadow: 0 10px 30px rgba(2,6,23,0.08); }
+    .reveal { transform: translateY(18px) scale(.995); opacity: 0; transition: all .6s cubic-bezier(.2,.9,.2,1); }
+    .reveal.visible { transform: translateY(0) scale(1); opacity: 1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { transition: none; }
+      .card-hover { transition: none; transform: none !important; }
+    }
+
+    /* small accessible focus */
+    :focus { outline: 3px solid rgba(16,185,129,0.14); outline-offset: 3px; }
+
+    /* container width */
+    .constrained { max-width: 1100px; margin-left: auto; margin-right: auto; }
+  </style>
+</head>
+<body class="bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300">
+  <div id="root"></div>
+
+  <!-- React + ReactDOM CDN (UMD builds) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <script>
+    // Using UMD React => React and ReactDOM are global
+    const { useState, useEffect, useRef } = React;
+
+    /* ---------- small hooks ---------- */
+    function useLocalStorage(key, initial) {
+      const [state, setState] = useState(() => {
+        try {
+          const raw = localStorage.getItem(key);
+          return raw ? JSON.parse(raw) : initial;
+        } catch (e) {
+          return initial;
+        }
+      });
+      useEffect(() => {
+        try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      }, [key, state]);
+      return [state, setState];
+    }
+
+    /* ---------- Theme context/logic ---------- */
+    function ThemeToggle() {
+      const [theme, setTheme] = useLocalStorage('theme', 'system'); // 'light' | 'dark' | 'system'
+
+      useEffect(() => {
+        function apply(t) {
+          const root = document.documentElement;
+          if (t === 'dark') root.classList.add('dark');
+          else if (t === 'light') root.classList.remove('dark');
+          else {
+            // system
+            const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            root.classList.toggle('dark', preferDark);
+          }
+        }
+        apply(theme);
+
+        // listen to system changes only if theme === 'system'
+        const mql = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = () => { if (theme === 'system') apply('system'); };
+        if (mql && mql.addEventListener) mql.addEventListener('change', handler);
+        return () => { if (mql && mql.removeEventListener) mql.removeEventListener('change', handler); };
+      }, [theme]);
+
+      const next = () => {
+        setTheme(prev => prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light');
+      };
+
+      const label = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System';
+
+      return (
+        React.createElement('button',
+          {
+            onClick: next,
+            'aria-label': 'Toggle theme',
+            className: 'p-2 rounded-md bg-slate-100 dark:bg-slate-800 hover:shadow-sm transition'
+          },
+          React.createElement('span', { className: 'sr-only' }, 'Toggle theme'),
+          React.createElement('span', { className: 'inline-flex items-center gap-2' },
+            theme === 'dark' ? '🌙' : theme === 'light' ? '☀️' : '🖥️',
+            React.createElement('span', { className: 'text-xs hidden sm:inline' }, label)
+          )
+        )
+      );
+    }
+
+    /* ---------- small UI components (Header, Hero, Card, Footer) ---------- */
+    function Header({ onToggleMobile }) {
+      return (
+        React.createElement('header', { className: 'border-b border-slate-200 dark:border-slate-700' },
+          React.createElement('div', { className: 'constrained px-4 md:px-8 py-4 flex items-center justify-between' },
+            React.createElement('div', { className: 'flex items-center gap-3' },
+              React.createElement('div', { className: 'p-1 rounded-md bg-gradient-to-br from-emerald-50 to-white dark:from-slate-800 dark:to-slate-700' },
+                /* inline brand icon */
+                React.createElement('svg', { width: 36, height: 36, viewBox: '0 0 24 24', fill: 'none', className: 'text-emerald-500' },
+                  React.createElement('circle', { cx: 12, cy: 12, r: 9, stroke: 'currentColor', strokeWidth: 1.2 }),
+                  React.createElement('path', { d: 'M8 12h8', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round' })
+                )
+              ),
+              React.createElement('div', { className: 'text-lg font-semibold' }, 'Your Brand')
+            ),
+
+            React.createElement('nav', { className: 'hidden md:flex items-center gap-6 text-sm' },
+              React.createElement('a', { href: '#features', className: 'hover:underline' }, 'Features'),
+              React.createElement('a', { href: '#pricing', className: 'hover:underline' }, 'Pricing'),
+              React.createElement('a', { href: '#contact', className: 'hover:underline' }, 'Contact')
+            ),
+
+            React.createElement('div', { className: 'flex items-center gap-3' },
+              /* theme toggle */
+              React.createElement(ThemeToggle, null),
+              /* mobile menu button */
+              React.createElement('button', {
+                onClick: onToggleMobile,
+                className: 'md:hidden p-2 rounded-md bg-slate-100 dark:bg-slate-800'
+              }, '☰')
+            )
+          )
+        )
+      );
+    }
+
+    function Hero() {
+      return (
+        React.createElement('section', { className: 'constrained px-4 md:px-8 py-12 grid grid-cols-1 md:grid-cols-2 gap-8 items-center' },
+          React.createElement('div', null,
+            React.createElement('h1', { className: 'text-3xl md:text-4xl font-bold mb-4' }, 'Convert Figma to a polished website'),
+            React.createElement('p', { className: 'text-slate-600 dark:text-slate-300 mb-6' }, 'Responsive, accessible, and deploy-ready. Replace the placeholders with your exported assets from Figma and tweak colors/spacing to match the design.'),
+            React.createElement('div', { className: 'flex gap-3' },
+              React.createElement('a', { className: 'inline-block px-4 py-2 rounded-md bg-brand-500 text-white shadow-sm', href: '#features' }, 'Get started'),
+              React.createElement('a', { className: 'inline-block px-4 py-2 rounded-md border border-slate-200 dark:border-slate-700', href: '#contact' }, 'Contact us')
+            )
+          ),
+
+          React.createElement('div', { className: 'rounded-2xl bg-slate-50 dark:bg-slate-800 p-6 flex items-center justify-center' },
+            React.createElement('div', { style: { width: '100%', maxWidth: 520 } },
+              React.createElement('div', { className: 'aspect-[16/9] rounded-lg overflow-hidden bg-gradient-to-br from-brand-50 to-sky-50 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center' },
+                React.createElement('svg', { viewBox: '0 0 600 340', className: 'w-full h-full' },
+                  React.createElement('defs', null,
+                    React.createElement('linearGradient', { id: 'g2', x1: '0', x2: '1' },
+                      React.createElement('stop', { offset: '0', 'stop-color': '#10b981' }),
+                      React.createElement('stop', { offset: '1', 'stop-color': '#60a5fa' })
+                    )
+                  ),
+                  React.createElement('rect', { width: '100%', height: '100%', rx: 12, fill: 'url(#g2)', opacity: 0.12 })
+                )
+              )
+            )
+          )
+        )
+      );
+    }
+
+    function FeatureCard({ title, text, icon }) {
+      return (
+        React.createElement('article', { className: 'reveal rounded-2xl p-5 bg-white dark:bg-slate-800 shadow-sm card-hover' },
+          React.createElement('div', { className: 'flex items-start gap-4' },
+            React.createElement('div', { className: 'p-3 rounded-lg bg-emerald-50 text-emerald-700 shrink-0' }, icon),
+            React.createElement('div', null,
+              React.createElement('h3', { className: 'font-semibold mb-1' }, title),
+              React.createElement('p', { className: 'text-slate-600 dark:text-slate-300 text-sm' }, text)
+            )
+          )
+        )
+      );
+    }
+
+    function Features() {
+      const items = [
+        { title: 'Responsive layout', text: 'Grid + Flex layout for all breakpoints. Mobile-first and polished.' , icon: '📱' },
+        { title: 'Dark / Light mode', text: 'Persistent theme using localStorage and system fallback.' , icon: '🌓' },
+        { title: 'Accessible', text: 'Semantic HTML, keyboard focus, and sufficient contrast.' , icon: '♿' },
+        { title: 'Smooth animations', text: 'Subtle reveals on scroll and hover micro-interactions.' , icon: '✨' },
+        { title: 'Easy to deploy', text: 'Works with Vercel/Netlify/GitHub Pages quickly.' , icon: '🚀' },
+        { title: 'Figma-friendly', text: 'Replace icons & images exported from Figma easily.' , icon: '🎨' },
+      ];
+      return (
+        React.createElement('section', { id: 'features', className: 'constrained px-4 md:px-8 py-12' },
+          React.createElement('h2', { className: 'text-2xl font-semibold mb-6' }, 'Why this setup'),
+          React.createElement('div', { className: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6' },
+            items.map((it, i) =>
+              React.createElement(FeatureCard, { key: i, title: it.title, text: it.text, icon: it.icon })
+            )
+          )
+        )
+      );
+    }
+
+    function Footer() {
+      return (
+        React.createElement('footer', { className: 'border-t border-slate-200 dark:border-slate-700 mt-12' },
+          React.createElement('div', { className: 'constrained px-4 md:px-8 py-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4' },
+            React.createElement('div', null, `© ${new Date().getFullYear()} Your Name — Built from Figma`),
+            React.createElement('div', { className: 'text-sm text-slate-600 dark:text-slate-300' },
+              'Made with care • ',
+              React.createElement('a', { href: '#contact', className: 'underline' }, 'Contact')
+            )
+          )
+        )
+      );
+    }
+
+    /* ---------- Mobile panel (simple) ---------- */
+    function MobilePanel({ open, onClose }) {
+      if (!open) return null;
+      return React.createElement('div', {
+        className: 'fixed inset-0 bg-black/30 z-30'
+      },
+        React.createElement('div', {
+          className: 'absolute right-4 top-4 bg-white dark:bg-slate-800 rounded-xl p-4 w-[270px] shadow-lg'
+        },
+          React.createElement('button', { onClick: onClose, className: 'mb-3 p-2 rounded-md bg-slate-100 dark:bg-slate-700' }, 'Close'),
+          React.createElement('nav', { className: 'flex flex-col gap-3' },
+            React.createElement('a', { href: '#features', onClick: onClose }, 'Features'),
+            React.createElement('a', { href: '#pricing', onClick: onClose }, 'Pricing'),
+            React.createElement('a', { href: '#contact', onClick: onClose }, 'Contact')
+          )
+        )
+      );
+    }
+
+    /* ---------- App ---------- */
+    function App() {
+      const [mobileOpen, setMobileOpen] = useState(false);
+
+      // reveal-on-scroll
+      useEffect(() => {
+        const nodes = Array.from(document.querySelectorAll('.reveal'));
+        const io = new IntersectionObserver(entries => {
+          entries.forEach(ent => {
+            if (ent.isIntersecting) ent.target.classList.add('visible');
+          });
+        }, { threshold: 0.12 });
+        nodes.forEach(n => io.observe(n));
+        return () => io.disconnect();
+      }, []);
+
+      return (
+        React.createElement(React.Fragment, null,
+          React.createElement(Header, { onToggleMobile: () => setMobileOpen(true) }),
+          React.createElement(MobilePanel, { open: mobileOpen, onClose: () => setMobileOpen(false) }),
+          React.createElement('main', null,
+            React.createElement(Hero, null),
+            React.createElement(Features, null),
+
+            React.createElement('section', { id: 'contact', className: 'constrained px-4 md:px-8 py-10' },
+              React.createElement('div', { className: 'rounded-2xl bg-white dark:bg-slate-800 p-6 shadow-sm' },
+                React.createElement('h3', { className: 'text-lg font-semibold mb-3' }, 'Get in touch'),
+                React.createElement('p', { className: 'text-slate-600 dark:text-slate-300 mb-4' }, 'After you finish, deploy to Vercel and paste the link in the Google Form.'),
+                React.createElement('form', {
+                  onSubmit: (e) => { e.preventDefault(); alert('Form stub — add your real backend or Google Form link.'); },
+                  className: 'grid grid-cols-1 sm:grid-cols-2 gap-3'
+                },
+                  React.createElement('input', { required: true, placeholder: 'Your name', className: 'p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-transparent' }),
+                  React.createElement('input', { required: true, type: 'email', placeholder: 'Email', className: 'p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-transparent' }),
+                  React.createElement('textarea', { required: true, placeholder: 'Message', className: 'p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-transparent sm:col-span-2' }),
+                  React.createElement('button', { className: 'sm:col-span-2 px-4 py-2 rounded-md bg-brand-500 text-white' }, 'Send')
+                )
+              )
+            )
+          ),
+          React.createElement(Footer, null)
+        )
+      );
+    }
+
+    // Render app
+    const rootEl = document.getElementById('root');
+    ReactDOM.createRoot(rootEl).render(React.createElement(App));
+  </script>
+</body>
+</html>
